@@ -1,34 +1,63 @@
-import sqlalchemy
-from sqlalchemy import ForeignKey
-from sqlalchemy import Table, Column, Text, DateTime, Integer
-import datetime
-
-# 1. Create shared engine
-conn_str = 'sqlite:///./data/store.bin'
-engine = sqlalchemy.create_engine(conn_str)
-
-# 2. Create shared metadata
-metadata = sqlalchemy.MetaData()
-
-# 3. Define schema
-customers = Table('customers', metadata,
-                  Column('id', Integer, primary_key=True, autoincrement=True),
-                  Column('name', Text, nullable=False, unique=True, index=True),
-                  Column('created', DateTime, default=datetime.datetime.now),
-                  Column('email', Text, nullable=False, unique=True, index=True)
-                  )
-
-addresses = Table('addresses', metadata,
-                  Column('id', Integer, primary_key=True, autoincrement=True),
-                  Column('street', Text),
-                  Column('city', Text),
-                  Column('state', Text),
-                  Column('country', Text),
-                  Column('postal_code', Text),
-                  Column('user_id', None, ForeignKey('customers.id'))
-                  )
-
-# 4. Create the database
-metadata.create_all(engine)
+import data.base
+import data.tables
 
 
+def main():
+    data.base.create_db()
+    # insert_data()
+    add_test_data()
+    find_data()
+
+
+def find_data():
+    custs = data.tables.customers
+    conn = data.base.created_conn()
+
+    cust221 = conn.execute(custs.select().where(custs.c.email == 'cust221@aol.com')).first()
+    print("Single customer")
+    print(cust221.id, cust221.email, cust221.created)
+    print()
+
+    latest_customers = conn.execute(custs
+            .select().where(custs.c.email.like('cust99%@aol.com'))
+            .order_by(custs.c.created.desc()))
+
+    print("Latest")
+    for c in latest_customers:
+        print(c)
+
+
+def insert_data():
+    statement = data.tables.customers.insert().values(
+        name='mkennedy', email='michael@aol.com'
+    )
+
+    # print(statement)
+
+    conn = data.base.created_conn()
+    result = conn.execute(statement)
+
+    print("New record: {}".format(result.inserted_primary_key))
+
+
+def add_test_data():
+    conn = data.base.created_conn()
+    if conn.execute(data.tables.customers.count()).scalar() > 1:
+        print("Skipping insert")
+        return
+
+    to_insert = []
+    for i in range(0, 1000):
+        to_insert.append({
+            'name': 'cust_{}'.format(i + 1),
+            'email': 'cust{}@aol.com'.format(i + 1)
+        })
+
+    conn.execute(data.tables.customers.insert(), to_insert)
+    conn.close()
+
+    print("Added {} customers to the db".format(len(to_insert)))
+
+
+if __name__ == '__main__':
+    main()
