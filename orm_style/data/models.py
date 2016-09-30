@@ -22,3 +22,13 @@ class Order(SqlAlchemyBase):
                            default=lambda: str(uuid.uuid4()).replace('-', ''))
     total_price = sqlalchemy.Column(sqlalchemy.Float)
     created = sqlalchemy.Column(sqlalchemy.DateTime, default=datetime.datetime.now)
+
+    def __str__(self):
+        return "Order object: id={}, price={}, created={}".format(
+            self.id, self.total_price, self.created
+        )
+
+    def __repr__(self):
+        return "order(id={}, price={})".format(
+            self.id, int(self.total_price)
+        )
